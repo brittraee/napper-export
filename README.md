@@ -9,7 +9,7 @@ Napper doesn't offer a data export feature. This project extracts your sleep dat
 
 ## Why
 
-I wanted a portable copy of my son's sleep data — 3 years of wake times, naps, bedtimes, night wakings. The app stores everything server-side with no export option. GDPR data requests went unanswered (bounced by Apple's Hide My Email relay). So I built this.
+I wanted a portable copy of my kid's sleep data — 3 years of wake times, naps, bedtimes, night wakings. The app stores everything server-side with no export option. GDPR data requests went unanswered (bounced by Apple's Hide My Email relay). So I built this.
 
 The local backup approach only recovered ~45 days out of 1,000+ because Napper's MMKV cache rolls over every 7-10 days. The API approach recovered everything.
 
@@ -19,11 +19,27 @@ The local backup approach only recovered ~45 days out of 1,000+ because Napper's
 processed/
   napper_daily.csv     One row per day (wake time, nap, bedtime)
   napper_events.csv    One row per event (all categories)
-silas_sleep.db         SQLite database
+sleep.db               SQLite database
 raw/
   napper_api/          Complete JSON from API (organized by month)
   napper/              MMKV extraction (partial, for reference)
-  nara/                Nara Baby data (if you used that app)
+```
+
+### Sample Output
+
+**napper_daily.csv**
+```
+date,wake_time,nap_start,nap_end,nap_duration_min,nap_skipped,bedtime,how_baby_slept,wake_time_tz,nap_start_tz,nap_end_tz,bedtime_tz
+2024-06-15,07:23,13:10,14:45,95.0,False,21:30,,08:23,14:10,15:45,22:30
+2024-06-16,06:55,12:40,14:20,100.0,False,22:00,SWING,07:55,13:40,15:20,23:00
+```
+
+**napper_events.csv**
+```
+date,event_type,start_time,end_time,duration_min,skipped,start_time_tz,end_time_tz
+2024-06-15,WOKE_UP,07:23,,,False,08:23,
+2024-06-15,NAP,13:10,14:45,95.0,False,14:10,15:45
+2024-06-15,BED_TIME,21:30,,,False,22:30,
 ```
 
 ## Quick Start
@@ -34,10 +50,18 @@ raw/
 - [iMazing](https://imazing.com) with at least one completed backup
 - An active Napper account
 
+### Dependencies
+
+```bash
+pip install protobuf  # Only needed for MMKV extraction
+```
+
+All other dependencies are standard library (`json`, `sqlite3`, `csv`, `urllib`).
+
 ### Setup
 
 ```bash
-git clone https://github.com/YOUR_USER/napper-export.git
+git clone https://github.com/brittraee/napper-export.git
 cd napper-export
 
 # Auto-detect your device, find file hashes, and create config.json
@@ -70,6 +94,18 @@ python3 process_napper.py    # Generate CSV + SQLite
 
 This only captures days that were in Napper's local cache at backup time (~7-10 days per backup snapshot).
 
+## Timezone Normalization
+
+If you moved time zones during your tracking period, you can normalize all clock times to a single timezone. Add a `timezone` field to your `config.json`:
+
+```json
+{
+  "timezone": "America/Chicago"
+}
+```
+
+This adds `_tz` columns alongside the original local times. Uses standard [IANA timezone names](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones) (e.g. `America/New_York`, `America/Los_Angeles`, `Europe/London`). If omitted, no normalization is applied and only the original local times are included.
+
 ## How It Works
 
 ### MMKV Extraction
@@ -92,10 +128,6 @@ The Napper app authenticates via JWT (RS256) tokens stored in the MMKV auth file
 
 Key endpoint: `GET /logs-between-days/{babyId}/{startDate}/{endDate}` returns all events in a date range.
 
-### Nara Baby (Bonus)
-
-If you also used Nara Baby, `extract_nara.py` pulls what's available locally (profile, config, last-tracked entries). Nara stores full history in Firebase — only snapshots are in the local backup.
-
 ## Data Dictionary
 
 ### napper_daily (CSV / SQLite)
@@ -103,13 +135,14 @@ If you also used Nara Baby, `extract_nara.py` pulls what's available locally (pr
 | Column | Type | Description |
 |--------|------|-------------|
 | date | TEXT | YYYY-MM-DD |
-| wake_time | TEXT | HH:MM local time |
+| wake_time | TEXT | HH:MM original local time |
 | nap_start | TEXT | HH:MM |
 | nap_end | TEXT | HH:MM |
 | nap_duration_min | REAL | Nap length in minutes |
 | nap_skipped | BOOL | Nap was skipped |
 | bedtime | TEXT | HH:MM |
 | how_baby_slept | TEXT | Sleep method (e.g. "SWING") |
+| *_tz | TEXT | HH:MM in configured timezone (if set) |
 
 ### napper_events (CSV / SQLite)
 
@@ -123,6 +156,17 @@ If you also used Nara Baby, `extract_nara.py` pulls what's available locally (pr
 | skipped | BOOL | Event was marked skipped |
 | comment | TEXT | User comment |
 | created_by | TEXT | User ID who logged it |
+| *_tz | TEXT | HH:MM in configured timezone (if set) |
+
+## Privacy
+
+This repo contains **code only** — no personal data. The `.gitignore` excludes:
+- `config.json` (contains your device/baby IDs)
+- `raw/` (API responses with timestamps)
+- `processed/` (generated CSVs)
+- `*.db` (SQLite database)
+
+If you fork this repo, double-check that your `.gitignore` is working before pushing.
 
 ## Limitations
 
@@ -136,7 +180,6 @@ If you also used Nara Baby, `extract_nara.py` pulls what's available locally (pr
 | App | Local Data Available | Notes |
 |-----|---------------------|-------|
 | **Napper** | Full history via API; partial via MMKV | This project |
-| **Nara Baby** | Config + last-track snapshots | Full history is Firebase server-side |
 | **Nanit** | Encrypted locally | Not extractable without their API |
 | **Huckleberry** | None | Entirely server-side |
 

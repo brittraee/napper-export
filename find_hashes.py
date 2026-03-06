@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Find file hashes for Napper and Nara in an iMazing backup.
+"""Find file hashes for Napper in an iMazing backup.
 
 Queries the Manifest.db to find the SHA-1 hashes needed for config.json.
 Run this first to populate your config.
@@ -27,7 +27,7 @@ def find_device() -> str | None:
 
 
 def query_manifest(device_id: str) -> dict:
-    """Query Manifest.db for Napper and Nara file hashes."""
+    """Query Manifest.db for Napper file hashes."""
     manifest = Path(BACKUP_BASE) / device_id / "Manifest.db"
     if not manifest.exists():
         print(f"Manifest.db not found at {manifest}")
@@ -47,14 +47,6 @@ def query_manifest(device_id: str) -> dict:
         "napper_auth_hash": (
             "SELECT fileID FROM Files WHERE domain='AppDomain-com.niceguys.napper' "
             "AND relativePath='Documents/mmkv/auth'"
-        ),
-        "nara_app_plist_hash": (
-            "SELECT fileID FROM Files WHERE domain='AppDomain-com.niceguys.nara-baby' "
-            "AND relativePath='Library/Preferences/com.niceguys.nara-baby.plist'"
-        ),
-        "nara_group_plist_hash": (
-            "SELECT fileID FROM Files WHERE domain LIKE '%nara%' "
-            "AND relativePath LIKE '%group%plist'"
         ),
     }
 

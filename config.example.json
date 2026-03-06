@@ -3,6 +3,5 @@
   "baby_id": "YOUR_BABY_ID",
   "napper_query_hash": "HASH_FROM_MANIFEST_DB",
   "napper_babies_hash": "HASH_FROM_MANIFEST_DB",
-  "nara_app_plist_hash": "HASH_FROM_MANIFEST_DB",
-  "nara_group_plist_hash": "HASH_FROM_MANIFEST_DB"
+  "timezone": "America/Chicago"
 }

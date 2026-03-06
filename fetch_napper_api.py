@@ -20,7 +20,7 @@ TOKEN_FILE = Path("/tmp/napper_token.txt")
 OUTPUT_DIR = Path(__file__).parent / "raw" / "napper_api"
 
 # Fetch in monthly chunks — adjust to your usage dates
-START_DATE = date(2022, 11, 1)  # Around baby's birthday
+START_DATE = date(2022, 11, 1)  # Adjust to your tracking start date
 END_DATE = date.today()
 
 
