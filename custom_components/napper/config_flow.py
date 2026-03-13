@@ -18,7 +18,7 @@ _LOGGER = logging.getLogger(__name__)
 
 STEP_USER_DATA_SCHEMA = vol.Schema(
     {
-        vol.Required(CONF_API_TOKEN): str,
+        vol.Optional(CONF_API_TOKEN, default=""): str,
         vol.Required(CONF_BABY_ID): str,
     }
 )
@@ -54,22 +54,32 @@ class NapperConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            token = user_input[CONF_API_TOKEN]
-            baby_id = user_input[CONF_BABY_ID]
+            token = user_input.get(CONF_API_TOKEN, "").strip()
+            baby_id = user_input[CONF_BABY_ID].strip()
 
-            baby_name = await self.hass.async_add_executor_job(
-                _validate_credentials, token, baby_id
-            )
+            baby_name = "Baby"
 
-            if baby_name is not None:
+            if token:
+                # Validate against API if token provided
+                baby_name_result = await self.hass.async_add_executor_job(
+                    _validate_credentials, token, baby_id
+                )
+                if baby_name_result is None:
+                    errors["base"] = "invalid_auth"
+                else:
+                    baby_name = baby_name_result
+
+            if not errors:
                 await self.async_set_unique_id(baby_id)
                 self._abort_if_unique_id_configured()
 
                 return self.async_create_entry(
                     title=f"Napper - {baby_name}",
-                    data=user_input,
+                    data={
+                        CONF_BABY_ID: baby_id,
+                        CONF_API_TOKEN: token,
+                    },
                 )
-            errors["base"] = "invalid_auth"
 
         return self.async_show_form(
             step_id="user",

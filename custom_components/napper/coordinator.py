@@ -89,27 +89,37 @@ class NapperCoordinator(DataUpdateCoordinator):
         except Exception as err:
             raise UpdateFailed(f"Error fetching Napper data: {err}") from err
 
+    @property
+    def has_api(self) -> bool:
+        """Whether an API token is configured."""
+        return bool(self._token)
+
     def _fetch(self) -> dict:
         # Fetch baby name on first run
         if self._baby_name is None:
-            try:
-                babies = self._api_get("/babies")
-                items = babies.get("items", [])
-                for baby in items:
-                    if baby.get("id") == self._baby_id:
-                        self._baby_name = baby.get("name", "Baby")
-                        break
-                if not self._baby_name and items:
-                    self._baby_name = items[0].get("name", "Baby")
-            except (HTTPError, Exception):
+            if self.has_api:
+                try:
+                    babies = self._api_get("/babies")
+                    api_items = babies.get("items", [])
+                    for baby in api_items:
+                        if baby.get("id") == self._baby_id:
+                            self._baby_name = baby.get("name", "Baby")
+                            break
+                    if not self._baby_name and api_items:
+                        self._baby_name = api_items[0].get("name", "Baby")
+                except (HTTPError, Exception):
+                    self._baby_name = "Baby"
+            else:
                 self._baby_name = "Baby"
 
         today = date.today()
         history_start = today - timedelta(days=WAKE_HISTORY_DAYS)
-        path = f"/logs-between-days/{self._baby_id}/{history_start.isoformat()}/{today.isoformat()}"
 
-        data = self._api_get(path)
-        items = data.get("items", [])
+        items = []
+        if self.has_api:
+            path = f"/logs-between-days/{self._baby_id}/{history_start.isoformat()}/{today.isoformat()}"
+            data = self._api_get(path)
+            items = data.get("items", [])
 
         today_str = today.isoformat()
         yesterday_str = (today - timedelta(days=1)).isoformat()
