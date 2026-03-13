@@ -54,11 +54,31 @@ class NapperCoordinator(DataUpdateCoordinator):
     def baby_name(self) -> str | None:
         return self._baby_name
 
+    @property
+    def baby_id(self) -> str:
+        return self._baby_id
+
+    @property
+    def token(self) -> str:
+        return self._token
+
     def _api_get(self, path: str) -> dict:
         url = f"{API_BASE}{path}"
         req = Request(url, headers={
             "Authorization": f"Bearer {self._token}",
             "Accept": "application/json",
+        })
+        with urlopen(req, timeout=15) as resp:
+            return json.loads(resp.read())
+
+    def api_post(self, path: str, body: dict) -> dict:
+        """POST JSON to the Napper API."""
+        url = f"{API_BASE}{path}"
+        data = json.dumps(body).encode()
+        req = Request(url, data=data, method="POST", headers={
+            "Authorization": f"Bearer {self._token}",
+            "Accept": "application/json",
+            "Content-Type": "application/json",
         })
         with urlopen(req, timeout=15) as resp:
             return json.loads(resp.read())
@@ -127,6 +147,9 @@ class NapperCoordinator(DataUpdateCoordinator):
         today_str: str,
         recent_wake_times: list[str],
     ) -> dict:
+        now = datetime.now()
+        current_hour = now.hour
+
         result = {
             "date": today_str,
             "last_event_type": None,
@@ -135,13 +158,22 @@ class NapperCoordinator(DataUpdateCoordinator):
             "events_today": len(today_events),
             "night_wakings": 0,
             "nap_skipped": False,
+            "nap_in_progress": False,
             "wake_time": None,
             "nap_start": None,
             "nap_end": None,
             "nap_duration_min": None,
             "bedtime": None,
             "suggested_wake_time": None,
+            # Visibility flags for action buttons
+            "show_log_nap": False,
+            "show_stop_nap": False,
+            "show_log_bed": False,
         }
+
+        has_nap_start = False
+        has_nap_end = False
+        has_bedtime = False
 
         for ev in today_events:
             cat = ev.get("category")
@@ -155,13 +187,17 @@ class NapperCoordinator(DataUpdateCoordinator):
                 if ev.get("skipped") or ev.get("isSkipped"):
                     result["nap_skipped"] = True
                 else:
+                    has_nap_start = True
                     result["nap_start"] = _to_12hr(time_str)
                     end_time = end[11:16] if len(end) >= 16 else None
-                    result["nap_end"] = _to_12hr(end_time)
+                    if end_time:
+                        has_nap_end = True
+                        result["nap_end"] = _to_12hr(end_time)
                     if start and end:
                         result["nap_duration_min"] = self._duration_min(start, end)
                     result["how_baby_slept"] = ev.get("howBabySlept")
             elif cat == "BED_TIME":
+                has_bedtime = True
                 result["bedtime"] = _to_12hr(time_str)
             elif cat == "NIGHT_WAKING":
                 result["night_wakings"] += 1
@@ -169,6 +205,21 @@ class NapperCoordinator(DataUpdateCoordinator):
             if time_str:
                 result["last_event"] = _to_12hr(time_str)
                 result["last_event_type"] = cat
+
+        # Nap is in progress if started but not ended
+        result["nap_in_progress"] = has_nap_start and not has_nap_end
+
+        # Visibility rules:
+        # Log Nap: show 11 AM–5 PM, only if no nap started yet today
+        result["show_log_nap"] = (
+            11 <= current_hour < 17
+            and not has_nap_start
+            and not result["nap_skipped"]
+        )
+        # Stop Nap: show whenever a nap is actively in progress
+        result["show_stop_nap"] = result["nap_in_progress"]
+        # Log Bed: show 6 PM–11 PM, only if no bedtime logged yet
+        result["show_log_bed"] = 18 <= current_hour < 23 and not has_bedtime
 
         # If no bedtime today, check yesterday
         if result["bedtime"] is None:

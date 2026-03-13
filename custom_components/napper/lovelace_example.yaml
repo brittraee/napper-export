@@ -1,0 +1,94 @@
+# Napper Dashboard — paste into your Lovelace dashboard YAML
+# The action pills appear/disappear based on time of day and nap state.
+#
+# Replace "baby" with your baby's name (lowercase) in entity IDs.
+# e.g., sensor.baby_last_event_type → sensor.luna_last_event_type
+
+type: vertical-stack
+cards:
+  # ── Action pill buttons (conditional, top of card) ──
+  - type: horizontal-stack
+    cards:
+      - type: conditional
+        conditions:
+          - condition: state
+            entity: sensor.baby_show_log_nap
+            state: "True"
+        card:
+          type: button
+          entity: button.baby_log_nap
+          name: Log Nap
+          icon: mdi:sleep
+          tap_action:
+            action: toggle
+          show_state: false
+          show_name: true
+          icon_height: 24px
+
+      - type: conditional
+        conditions:
+          - condition: state
+            entity: sensor.baby_show_stop_nap
+            state: "True"
+        card:
+          type: button
+          entity: button.baby_stop_nap
+          name: Stop Nap
+          icon: mdi:sleep-off
+          tap_action:
+            action: toggle
+          show_state: false
+          show_name: true
+          icon_height: 24px
+
+      - type: conditional
+        conditions:
+          - condition: state
+            entity: sensor.baby_show_log_bed
+            state: "True"
+        card:
+          type: button
+          entity: button.baby_log_bedtime
+          name: Bedtime
+          icon: mdi:weather-night
+          tap_action:
+            action: toggle
+          show_state: false
+          show_name: true
+          icon_height: 24px
+
+  # ── Text / status info ──
+  - type: entities
+    title: Status
+    entities:
+      - entity: sensor.baby_last_event_type
+        name: Last Event
+      - entity: sensor.baby_last_event_time
+        name: At
+      - entity: sensor.baby_how_baby_slept
+        name: How Baby Slept
+      - entity: sensor.baby_events_today
+        name: Events Today
+      - entity: sensor.baby_night_wakings
+        name: Night Wakings
+      - entity: sensor.baby_nap_skipped
+        name: Nap Skipped
+
+  # ── Times ──
+  - type: glance
+    title: Schedule
+    show_name: true
+    show_state: true
+    entities:
+      - entity: sensor.baby_wake_time
+        name: Wake
+      - entity: sensor.baby_nap_start
+        name: Nap Start
+      - entity: sensor.baby_nap_end
+        name: Nap End
+      - entity: sensor.baby_nap_duration
+        name: Duration
+      - entity: sensor.baby_bedtime
+        name: Bedtime
+      - entity: sensor.baby_suggested_wake_time
+        name: Tomorrow Wake

@@ -10,7 +10,7 @@ from homeassistant.core import HomeAssistant
 from .const import CONF_API_TOKEN, CONF_BABY_ID, DEFAULT_SCAN_INTERVAL, DOMAIN
 from .coordinator import NapperCoordinator
 
-PLATFORMS = ["sensor"]
+PLATFORMS = ["sensor", "button"]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

@@ -28,6 +28,11 @@ SENSOR_TYPES: dict[str, tuple[str, str | None, str | None]] = {
     "nap_duration_min": ("Nap Duration", "min", "mdi:timer-outline"),
     "bedtime": ("Bedtime", None, "mdi:weather-night"),
     "suggested_wake_time": ("Suggested Wake Time", None, "mdi:crystal-ball"),
+    # --- State / visibility helpers ---
+    "nap_in_progress": ("Nap In Progress", None, "mdi:sleep"),
+    "show_log_nap": ("Show Log Nap", None, "mdi:sleep"),
+    "show_stop_nap": ("Show Stop Nap", None, "mdi:sleep-off"),
+    "show_log_bed": ("Show Log Bed", None, "mdi:weather-night"),
 }
 
 
