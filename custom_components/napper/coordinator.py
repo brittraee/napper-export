@@ -2,7 +2,7 @@
 
 import json
 import logging
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
@@ -12,6 +12,22 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from .const import API_BASE
 
 _LOGGER = logging.getLogger(__name__)
+
+# Number of recent days to average for predicted wake time
+WAKE_HISTORY_DAYS = 7
+
+
+def _to_12hr(time_24: str | None) -> str | None:
+    """Convert HH:MM (24hr) to h:MM AM/PM."""
+    if not time_24 or len(time_24) < 5:
+        return None
+    try:
+        hour, minute = int(time_24[:2]), int(time_24[3:5])
+        period = "AM" if hour < 12 else "PM"
+        display_hour = hour % 12 or 12
+        return f"{display_hour}:{minute:02d} {period}"
+    except (ValueError, IndexError):
+        return None
 
 
 class NapperCoordinator(DataUpdateCoordinator):
@@ -68,19 +84,20 @@ class NapperCoordinator(DataUpdateCoordinator):
             except (HTTPError, Exception):
                 self._baby_name = "Baby"
 
-        # Fetch today and yesterday
         today = date.today()
-        yesterday = today - timedelta(days=1)
-        path = f"/logs-between-days/{self._baby_id}/{yesterday.isoformat()}/{today.isoformat()}"
+        history_start = today - timedelta(days=WAKE_HISTORY_DAYS)
+        path = f"/logs-between-days/{self._baby_id}/{history_start.isoformat()}/{today.isoformat()}"
 
         data = self._api_get(path)
         items = data.get("items", [])
 
         today_str = today.isoformat()
-        yesterday_str = yesterday.isoformat()
+        yesterday_str = (today - timedelta(days=1)).isoformat()
 
         today_events = []
         yesterday_events = []
+        recent_wake_times = []  # HH:MM strings from recent days (not today)
+
         for ev in items:
             start = ev.get("start", "")
             ev_date = start[:10] if start else ""
@@ -89,24 +106,41 @@ class NapperCoordinator(DataUpdateCoordinator):
             elif ev_date == yesterday_str:
                 yesterday_events.append(ev)
 
-        return self._summarize(today_events, yesterday_events, today_str)
+            # Collect wake times from past days for prediction
+            if (
+                ev.get("category") == "WOKE_UP"
+                and ev_date
+                and ev_date != today_str
+                and ev_date >= history_start.isoformat()
+                and len(start) >= 16
+            ):
+                recent_wake_times.append(start[11:16])
+
+        return self._summarize(
+            today_events, yesterday_events, today_str, recent_wake_times
+        )
 
     def _summarize(
-        self, today_events: list, yesterday_events: list, today_str: str
+        self,
+        today_events: list,
+        yesterday_events: list,
+        today_str: str,
+        recent_wake_times: list[str],
     ) -> dict:
         result = {
             "date": today_str,
+            "last_event_type": None,
+            "last_event": None,
+            "how_baby_slept": None,
+            "events_today": len(today_events),
+            "night_wakings": 0,
+            "nap_skipped": False,
             "wake_time": None,
             "nap_start": None,
             "nap_end": None,
             "nap_duration_min": None,
-            "nap_skipped": False,
             "bedtime": None,
-            "how_baby_slept": None,
-            "night_wakings": 0,
-            "last_event": None,
-            "last_event_type": None,
-            "events_today": len(today_events),
+            "suggested_wake_time": None,
         }
 
         for ev in today_events:
@@ -116,24 +150,24 @@ class NapperCoordinator(DataUpdateCoordinator):
             time_str = start[11:16] if len(start) >= 16 else None
 
             if cat == "WOKE_UP":
-                result["wake_time"] = time_str
+                result["wake_time"] = _to_12hr(time_str)
             elif cat == "NAP":
                 if ev.get("skipped") or ev.get("isSkipped"):
                     result["nap_skipped"] = True
                 else:
-                    result["nap_start"] = time_str
+                    result["nap_start"] = _to_12hr(time_str)
                     end_time = end[11:16] if len(end) >= 16 else None
-                    result["nap_end"] = end_time
+                    result["nap_end"] = _to_12hr(end_time)
                     if start and end:
                         result["nap_duration_min"] = self._duration_min(start, end)
                     result["how_baby_slept"] = ev.get("howBabySlept")
             elif cat == "BED_TIME":
-                result["bedtime"] = time_str
+                result["bedtime"] = _to_12hr(time_str)
             elif cat == "NIGHT_WAKING":
                 result["night_wakings"] += 1
 
             if time_str:
-                result["last_event"] = time_str
+                result["last_event"] = _to_12hr(time_str)
                 result["last_event_type"] = cat
 
         # If no bedtime today, check yesterday
@@ -141,13 +175,38 @@ class NapperCoordinator(DataUpdateCoordinator):
             for ev in yesterday_events:
                 if ev.get("category") == "BED_TIME":
                     start = ev.get("start", "")
-                    result["bedtime"] = start[11:16] if len(start) >= 16 else None
+                    result["bedtime"] = _to_12hr(
+                        start[11:16] if len(start) >= 16 else None
+                    )
+
+        # Predicted tomorrow wake time: average of recent wake times
+        result["suggested_wake_time"] = self._predict_wake(recent_wake_times)
 
         return result
 
     @staticmethod
+    def _predict_wake(wake_times: list[str]) -> str | None:
+        """Average recent wake times to predict tomorrow's wake time."""
+        if not wake_times:
+            return None
+        total_minutes = 0
+        count = 0
+        for t in wake_times:
+            try:
+                h, m = int(t[:2]), int(t[3:5])
+                total_minutes += h * 60 + m
+                count += 1
+            except (ValueError, IndexError):
+                continue
+        if count == 0:
+            return None
+        avg = round(total_minutes / count)
+        hour = avg // 60
+        minute = avg % 60
+        return _to_12hr(f"{hour:02d}:{minute:02d}")
+
+    @staticmethod
     def _duration_min(start: str, end: str) -> float | None:
-        from datetime import datetime
         try:
             fmt = "%Y-%m-%dT%H:%M:%S"
             s = datetime.strptime(start[:19], fmt)

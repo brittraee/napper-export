@@ -11,19 +11,23 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import DOMAIN
 from .coordinator import NapperCoordinator
 
+# Ordered: text/status info first, then time-based sensors
 SENSOR_TYPES: dict[str, tuple[str, str | None, str | None]] = {
     # key: (name_suffix, unit, icon)
+    # --- Text / status info up top ---
+    "last_event_type": ("Last Event Type", None, "mdi:format-list-bulleted"),
+    "last_event": ("Last Event Time", None, "mdi:clock-outline"),
+    "how_baby_slept": ("How Baby Slept", None, "mdi:star-outline"),
+    "events_today": ("Events Today", None, "mdi:counter"),
+    "night_wakings": ("Night Wakings", None, "mdi:eye-outline"),
+    "nap_skipped": ("Nap Skipped", None, "mdi:cancel"),
+    # --- Time-based sensors ---
     "wake_time": ("Wake Time", None, "mdi:weather-sunset-up"),
     "nap_start": ("Nap Start", None, "mdi:sleep"),
     "nap_end": ("Nap End", None, "mdi:sleep-off"),
     "nap_duration_min": ("Nap Duration", "min", "mdi:timer-outline"),
-    "nap_skipped": ("Nap Skipped", None, "mdi:cancel"),
     "bedtime": ("Bedtime", None, "mdi:weather-night"),
-    "how_baby_slept": ("How Baby Slept", None, "mdi:star-outline"),
-    "night_wakings": ("Night Wakings", None, "mdi:eye-outline"),
-    "last_event": ("Last Event Time", None, "mdi:clock-outline"),
-    "last_event_type": ("Last Event Type", None, "mdi:format-list-bulleted"),
-    "events_today": ("Events Today", None, "mdi:counter"),
+    "suggested_wake_time": ("Suggested Wake Time", None, "mdi:crystal-ball"),
 }
 
 
