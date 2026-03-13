@@ -168,6 +168,37 @@ This repo contains **code only** — no personal data. The `.gitignore` excludes
 
 If you fork this repo, double-check that your `.gitignore` is working before pushing.
 
+## Home Assistant Integration
+
+A custom component is included to expose Napper sleep data as sensors in Home Assistant.
+
+### Installation
+
+1. Copy `custom_components/napper/` into your Home Assistant `config/custom_components/` directory
+2. Restart Home Assistant
+3. Go to **Settings > Devices & Services > Add Integration** and search for "Napper"
+4. Enter your API token (from `extract_token.py`) and baby ID (from `config.json`)
+
+### Sensors
+
+The integration creates these sensors (polled every 5 minutes):
+
+| Sensor | Description |
+|--------|-------------|
+| Wake Time | Today's wake-up time (HH:MM) |
+| Nap Start / End | Nap window |
+| Nap Duration | Nap length in minutes |
+| Nap Skipped | Whether nap was skipped |
+| Bedtime | Bedtime (falls back to yesterday if not set today) |
+| How Baby Slept | Sleep method (e.g. SWING) |
+| Night Wakings | Count of night wakings today |
+| Last Event Time / Type | Most recent logged event |
+| Events Today | Total events logged today |
+
+### Token Refresh
+
+Auth tokens expire after ~30 days. When yours expires, re-extract from a fresh iMazing backup and update the integration config.
+
 ## Limitations
 
 - Auth tokens expire after ~30 days — re-extract from a fresh backup if needed
