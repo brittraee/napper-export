@@ -1,0 +1,17 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Napper Baby Sleep Tracker",
+        "description": "Enter your Napper API credentials. Use extract_token.py to get your token, and find your baby_id in config.json.",
+        "data": {
+          "api_token": "API Token (JWT)",
+          "baby_id": "Baby ID"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Invalid token or baby ID. The token may have expired."
+    }
+  }
+}
