@@ -1,0 +1,8 @@
+{
+  "backup_path": "~/Library/Application Support/iMazing/Backups",
+  "device_id": "YOUR_DEVICE_ID",
+  "baby_id": "YOUR_BABY_ID",
+  "napper_query_hash": "HASH_FROM_MANIFEST_DB",
+  "napper_babies_hash": "HASH_FROM_MANIFEST_DB",
+  "timezone": "America/Chicago"
+}

@@ -1,0 +1,25 @@
+# Personal data (contains PII - names, IDs, timestamps)
+raw/
+processed/
+*.db
+
+# Config with personal IDs
+config.json
+
+# API tokens
+napper_token.txt
+/tmp/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Internal planning docs
+docs/
+
+# OS
+.DS_Store

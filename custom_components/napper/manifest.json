@@ -1,0 +1,9 @@
+{
+  "domain": "napper",
+  "name": "Napper Baby Sleep Tracker",
+  "codeowners": ["@brittraee"],
+  "config_flow": true,
+  "documentation": "https://github.com/brittraee/napper-export",
+  "iot_class": "cloud_polling",
+  "version": "1.0.0"
+}
